@@ -2,10 +2,13 @@ def main():
   from argparse import ArgumentParser, Namespace
   from subprocess import run, CalledProcessError
   import google.generativeai as genai
+  import os
   from rich import print
+  from dotenv import load_dotenv
 
   parser = ArgumentParser()
-  api_key = 'AIzaSyDSY4o5XOJiPddVh30qs_NuilmYNT-WUOs'
+  load_dotenv()
+  api_key = os.getenv("GOOGLE_CLOUD_API")
   genai.configure(api_key=api_key)
   model=genai.GenerativeModel("gemini-2.0-flash")
 
