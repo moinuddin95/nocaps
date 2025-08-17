@@ -23,10 +23,19 @@ def main():
   from argparse import ArgumentParser, Namespace
   from subprocess import run, CalledProcessError
   from rich import print
+  from dotenv import load_dotenv
 
   # imports configuration
   parser = ArgumentParser()
   console = Console()
+
+  #TODO: REMOVE THIS BEFORE PRODUCTION
+  load_dotenv()
+  api_key = os.getenv("GOOGLE_API_KEY")
+  if not api_key:
+    console.print("[red]API key not found in environment variables.[/red]")
+    exit(1)
+
   genai.configure(api_key=api_key)
   model=genai.GenerativeModel("gemini-2.0-flash")
   parser.usage = "Learn python better!!"
@@ -39,9 +48,14 @@ def main():
 
   try:
 
-    # checking if the the file runs
-    with open(args.filepath, 'r', encoding='utf-8') as f:
-      file_content = f.read()
+    try:
+      # checking if the the file runs
+      with open(args.filepath, 'r', encoding='utf-8') as f:
+        file_content = f.read()
+    except Exception:
+      print("[yellow]File is not supported.[/yellow]")
+      exit(0)
+
     file_extention = args.filepath.split('.')[-1]
 
     match file_extention:
