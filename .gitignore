@@ -2,3 +2,5 @@
 build
 dist
 nocaps.egg-info
+
+node_modules
