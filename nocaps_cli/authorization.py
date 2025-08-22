@@ -27,6 +27,9 @@ def load_tokens():
     return access_token, refresh_token
 
 def refresh_access_token(refresh_token):
+    # TLDR: Requests Auth0 for a new access token using the refresh token
+    # Saves the new Access Token
+    # Returns: True if successful, False otherwise
     url = f"https://{AUTH0_DOMAIN}/oauth/token"
     data = {
         "client_id": CLIENT_ID,
@@ -36,11 +39,13 @@ def refresh_access_token(refresh_token):
     resp = requests.post(url, data=data).json()
     if "access_token" in resp:
         save_tokens(resp["access_token"])
+        return True
     else:
-        device_code, interval = request_user_code()
-        poll_for_tokens(device_code, interval)
+        return False
 
 def request_user_code():
+    #TLDR: Request Auth0 for device authorization and prompts user to visit the verification URI
+    #Returns: device_code and interval between polling
     url = f"https://{AUTH0_DOMAIN}/oauth/device/code"
     data = {
         "client_id": CLIENT_ID,
@@ -59,9 +64,13 @@ def request_user_code():
 
     print(f"Please visit {verification_uri_complete} and enter the code: {user_code}")
 
+
     return device_code, interval
 
 def poll_for_tokens(device_code, interval):
+    # TLDR: Keep requesting/polling the Auth0 for tokens if the user has authorized.
+    # Saves the tokens if returned
+
     token_url = f"https://{AUTH0_DOMAIN}/oauth/token"
     while True:
         time.sleep(interval)
@@ -75,24 +84,22 @@ def poll_for_tokens(device_code, interval):
         if "error" in token_resp:
             if token_resp["error"] == "authorization_pending":
                 print("Waiting for user to authorize...")
-                continue
             elif token_resp["error"] == "slow_down":
                 interval += 5
-                continue
             else:
                 raise Exception(f"Auth failed: {token_resp}")
         else:
             print("✅ Auth successful!")
             save_tokens(token_resp["access_token"], token_resp.get("refresh_token"))
-            return token_resp  # contains access_token, refresh_token (if requested)
 
 def device_authorization():
+  # TLDR: Check if we have valid tokens, if not, request new ones
+  # Try first using refresh token
+  # If that fails, request user code and poll for tokens
   access_token, refresh_token = load_tokens()
   if access_token and refresh_token:
     return
-  elif not access_token and refresh_token:
-    save_tokens(refresh_access_token(refresh_token))
-  else:
+  elif (not access_token) and refresh_token and refresh_access_token(refresh_token) == False:
     device_code, interval = request_user_code()
     poll_for_tokens(device_code, interval)
 

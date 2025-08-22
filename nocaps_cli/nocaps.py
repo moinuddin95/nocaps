@@ -4,7 +4,6 @@ def thinking_animation(stop_loading):
   from rich.panel import Panel
   from rich.live import Live
   from time import sleep
-  console = Console()
 
   message_base = 'Let me help you with this'
   i = 0
@@ -22,16 +21,19 @@ thread = None
 console = Console()
 
 def start_animation():
-  # starting the loading animation thread
+  global thread
+  stop_loading.clear()
   thread = threading.Thread(target=thinking_animation, args=(stop_loading,))
   thread.start()
 
 def stop_animation():
-  # stopping the loading animation
+  global thread
   stop_loading.set()
-  thread.join()
+  if thread is not None:
+    thread.join()
+    thread = None
   # Clear console after animation
-  console.clear_live()  
+  console.clear_live()
 
 def prompt_the_api(prompt):
   import requests
@@ -43,9 +45,8 @@ def prompt_the_api(prompt):
     stop_animation()
     device_authorization()
   
-  start_animation()
-
   def poll_request():
+    access_token = load_tokens()[0]
     response = requests.post(
       "http://localhost:3000/debug",
       json={"prompt": prompt},
@@ -54,42 +55,83 @@ def prompt_the_api(prompt):
     return response
 
   try:
-    data = poll_request()
-    data = data.content.text.json()
+    data = poll_request().json()
   except Exception:
     refresh_access_token(refresh_token)
     try:
       data = poll_request().json()
     except Exception:
+      stop_animation()
       raise Exception("Failed to parse response from API")
 
   if 'output' in data:
     return data['output']
-  elif 'error' in data:
-    raise Exception(data['error'])
   else:
-    raise Exception("Unexpected response format from API")
+    stop_animation()
+    if 'error' in data:
+      raise Exception(data['error'])
+    else:
+      raise Exception("Unexpected response format from API")
+
+def handle_error(e, file_content):
+  start_animation()
+
+  # prompting ai for response
+  error = e.stderr
+  file_text = file_content
+
+  roast_prompt = f"""
+    Analyze the following code written by a human developer. 
+    Identify areas of inefficiency, poor style, potential bugs, 
+    security vulnerabilities (if applicable), or just plain head-scratching choices. 
+    Provide a concise, witty, and extremely insulting roast targeting these 
+    specific issues within 12 words. Give only the roast for the output.
+
+    ---
+
+    {file_text}
+
+    ---
+
+    Example Roast Output:
+
+    My Grandmother runs faster than your code.
+
+    I've seen spaghetti with fewer tangles than your function calls.
+
+    Your code runs like a drunk grandma on rollerblades — in reverse.
+
+    I debugged it… turns out the real bug was you.
+    """
+  prompt = f"""{file_text}\n The above file is resulting in this error: {error} \nSuggest a fix, formatting the response in four paragraphs following this format:
+
+    :thumbs_down: : 
+    [red] [Indicate the *wrong* code snippet (if applicable)] [/red]
+      
+    [yellow] [Provide a breif explanation of the fix] [/yellow]
+
+    :thumbs_up: : 
+    [green] [Indicate the correct(the fix) code snippet (if applicable)] [/green]
+      
+    [cyan] [Suggest any short further enhancements or best practices under 30 words] [/cyan]
+    """
+  roast = prompt_the_api(roast_prompt)
+  prompt_response = prompt_the_api(prompt)
+  response = prompt_response.replace('```python\n', '')
+  response = response.replace('\n```', '')
+
+  stop_animation()
+
+  print(f"\n[blue]{roast.strip()}[/blue]\n\nBut here's what you can do about it\n")
+  print(response.strip() + "\n")
 
 def main():
-  import google.generativeai as genai
   from argparse import ArgumentParser, Namespace
   from subprocess import run, CalledProcessError
   from rich import print
-  from dotenv import load_dotenv
-
 
   # imports configuration
   parser = ArgumentParser()
-  
-  # Depricated Code:
-  # load_dotenv()
-  # api_key = os.getenv("GOOGLE_API_KEY")
-  # if not api_key:
-  #   console.print("[red]API key not found in environment variables.[/red]")
-  #   exit(1)
-  # genai.configure(api_key=api_key)
-  # model=genai.GenerativeModel("gemini-2.0-flash")
-
 
   parser.usage = "Learn python better!!"
 
@@ -98,16 +140,14 @@ def main():
   parser.add_argument('-v', '--verbose', action='count', help='Adds verbose to output')
   args: Namespace = parser.parse_args()
 
-
   try:
-
     try:
       # checking if the the file runs
       with open(args.filepath, 'r', encoding='utf-8') as f:
         file_content = f.read()
     except Exception:
       print("[yellow]File is not found or supported.[/yellow]")
-      exit(0)
+      return
 
     file_extention = args.filepath.split('.')[-1]
     #checking if the file is compatible
@@ -122,65 +162,15 @@ def main():
         class_name = args.filepath.split('.')[-2].replace('\\', '').replace('/', '')
         result = run(['java', class_name], capture_output=True, text=True, check=True)
       case _:
-        stop_loading.set()
-        thread.join()
+        # If the file extension is not supported
         print(f"[yellow]File extension '.{file_extention}' is not supported.[/yellow]")
         return
 
+    # print the output if there are not errors
     print(f"{result.stdout}")
 
   # debugging using the api
   except CalledProcessError as e:
-
-    start_animation()
-
-    # prompting ai for response
-    error = e.stderr
-    file_text = file_content
-
-    roast_prompt = f"""
-      Analyze the following code written by a human developer. 
-      Identify areas of inefficiency, poor style, potential bugs, 
-      security vulnerabilities (if applicable), or just plain head-scratching choices. 
-      Provide a concise, witty, and extremely insulting roast targeting these 
-      specific issues within 12 words. Give only the roast for the output.
-
-      ---
-
-      {file_text}
-
-      ---
-
-      Example Roast Output:
-
-      My Grandmother runs faster than your code.
-
-      I've seen spaghetti with fewer tangles than your function calls.
-
-      Your code runs like a drunk grandma on rollerblades — in reverse.
-
-      I debugged it… turns out the real bug was you.
-      """
-    prompt = f"""{file_text}\n The above file is resulting in this error: {error} \nSuggest a fix, formatting the response in four paragraphs following this format:
-
-      :thumbs_down: : 
-      [red] [Indicate the *wrong* code snippet (if applicable)] [/red]
-        
-      [yellow] [Provide a breif explanation of the fix] [/yellow]
-
-      :thumbs_up: : 
-      [green] [Indicate the correct(the fix) code snippet (if applicable)] [/green]
-        
-      [cyan] [Suggest any short further enhancements or best practices under 30 words] [/cyan]
-      """
-    roast = prompt_the_api(roast_prompt)
-    prompt_response = prompt_the_api(prompt)
-    response = prompt_response.replace('```python\n', '')
-    response = response.replace('\n```', '')
-
-    stop_animation()
-
-    print(f"\n[blue]{roast.strip()}[/blue]\n\nBut here's what you can do about it\n")
-    print(response.strip() + "\n")
+    handle_error(e, file_content)
 if __name__ == "__main__":
   main()
