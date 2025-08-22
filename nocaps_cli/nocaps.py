@@ -1,4 +1,5 @@
 from rich.console import Console
+import threading
 def thinking_animation(stop_loading):
   from rich.panel import Panel
   from rich.live import Live
@@ -9,35 +10,87 @@ def thinking_animation(stop_loading):
   i = 0
   panel = Panel(message_base, border_style='cyan')
   with Live(panel, refresh_per_second=4, transient=True) as live:
-    while not stop_loading.is_set():
+    while stop_loading.is_set() == False:
       dots = '.' * (i % 4)
       panel = Panel(f'{message_base}{dots}', border_style='cyan')
       live.update(panel)
       sleep(0.5)
       i += 1
 
+stop_loading = threading.Event()
+thread = None
+console = Console()
+
+def start_animation():
+  # starting the loading animation thread
+  thread = threading.Thread(target=thinking_animation, args=(stop_loading,))
+  thread.start()
+
+def stop_animation():
+  # stopping the loading animation
+  stop_loading.set()
+  thread.join()
+  # Clear console after animation
+  console.clear_live()  
+
+def prompt_the_api(prompt):
+  import requests
+  from authorization import load_tokens, refresh_access_token, device_authorization
+  
+  access_token, refresh_token = load_tokens()
+
+  if not access_token or not refresh_token:
+    stop_animation()
+    device_authorization()
+  
+  start_animation()
+
+  def poll_request():
+    response = requests.post(
+      "http://localhost:3000/debug",
+      json={"prompt": prompt},
+      headers={"Authorization": f"Bearer {access_token}"}
+    )
+    return response
+
+  try:
+    data = poll_request()
+    data = data.content.text.json()
+  except Exception:
+    refresh_access_token(refresh_token)
+    try:
+      data = poll_request().json()
+    except Exception:
+      raise Exception("Failed to parse response from API")
+
+  if 'output' in data:
+    return data['output']
+  elif 'error' in data:
+    raise Exception(data['error'])
+  else:
+    raise Exception("Unexpected response format from API")
+
 def main():
-  import os
-  import threading
   import google.generativeai as genai
   from argparse import ArgumentParser, Namespace
   from subprocess import run, CalledProcessError
   from rich import print
   from dotenv import load_dotenv
 
+
   # imports configuration
   parser = ArgumentParser()
-  console = Console()
+  
+  # Depricated Code:
+  # load_dotenv()
+  # api_key = os.getenv("GOOGLE_API_KEY")
+  # if not api_key:
+  #   console.print("[red]API key not found in environment variables.[/red]")
+  #   exit(1)
+  # genai.configure(api_key=api_key)
+  # model=genai.GenerativeModel("gemini-2.0-flash")
 
-  #TODO: REMOVE THIS BEFORE PRODUCTION
-  load_dotenv()
-  api_key = os.getenv("GOOGLE_API_KEY")
-  if not api_key:
-    console.print("[red]API key not found in environment variables.[/red]")
-    exit(1)
 
-  genai.configure(api_key=api_key)
-  model=genai.GenerativeModel("gemini-2.0-flash")
   parser.usage = "Learn python better!!"
 
   # cli configuration
@@ -53,11 +106,11 @@ def main():
       with open(args.filepath, 'r', encoding='utf-8') as f:
         file_content = f.read()
     except Exception:
-      print("[yellow]File is not supported.[/yellow]")
+      print("[yellow]File is not found or supported.[/yellow]")
       exit(0)
 
     file_extention = args.filepath.split('.')[-1]
-
+    #checking if the file is compatible
     match file_extention:
       case 'py':
         result = run(['python', args.filepath], capture_output=True, text=True, check=True)
@@ -65,7 +118,7 @@ def main():
         result = run(['node', args.filepath], capture_output=True, text=True, check=True)
       case 'java':
         # Compile the Java file first
-        compile_result = run(['javac', args.filepath], capture_output=True, text=True)
+        run(['javac', args.filepath], capture_output=True, text=True)
         class_name = args.filepath.split('.')[-2].replace('\\', '').replace('/', '')
         result = run(['java', class_name], capture_output=True, text=True, check=True)
       case _:
@@ -76,13 +129,10 @@ def main():
 
     print(f"{result.stdout}")
 
-  # debugging using gemini-2.0-flash
+  # debugging using the api
   except CalledProcessError as e:
 
-    # starting the loading animation thread
-    stop_loading = threading.Event()
-    thread = threading.Thread(target=thinking_animation, args=(stop_loading,))
-    thread.start()
+    start_animation()
 
     # prompting ai for response
     error = e.stderr
@@ -123,17 +173,14 @@ def main():
         
       [cyan] [Suggest any short further enhancements or best practices under 30 words] [/cyan]
       """
-    roast = model.generate_content(roast_prompt)
-    prompt_response = model.generate_content(prompt)
-    response = prompt_response.text.replace('```python\n', '')
+    roast = prompt_the_api(roast_prompt)
+    prompt_response = prompt_the_api(prompt)
+    response = prompt_response.replace('```python\n', '')
     response = response.replace('\n```', '')
 
-    # stopping the loading animation
-    stop_loading.set()
-    thread.join()
-    console.clear_live()  # Clear console after animation
+    stop_animation()
 
-    print(f"\n[blue]{roast.text.strip()}[/blue]\n\nBut here's what you can do about it\n")
+    print(f"\n[blue]{roast.strip()}[/blue]\n\nBut here's what you can do about it\n")
     print(response.strip() + "\n")
 if __name__ == "__main__":
   main()

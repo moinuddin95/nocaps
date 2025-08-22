@@ -2,13 +2,17 @@ import requests
 import time
 import keyring
 import json
+from dotenv import load_dotenv
+import os
 
-AUTH0_DOMAIN = "dev-g8fu3wxgsdujf3e2.us.auth0.com"  # e.g. "dev-1234.us.auth0.com"
-CLIENT_ID = "yuQNsXKeN6SHiP2LHasHdrl3MPdHB1we"
-AUDIENCE = "https://nocaps.com"
-SCOPE = "openid profile email offline_access"  # offline_access if you want refresh tokens
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../.env'))
 
-SERVICE_NAME = "mycli-auth0"   # identifier for keyring storage
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")  # e.g. "dev-1234.us.auth0.com"
+CLIENT_ID = os.getenv("AUTH0_CLIENT_ID")
+AUDIENCE = os.getenv("AUTH0_AUDIENCE")
+SCOPE = os.getenv("AUTH0_SCOPE")
+
+SERVICE_NAME = "nocaps-auth0"   # identifier for keyring storage
 ACCESS_TOKEN_KEY = "access_token"
 REFRESH_TOKEN_KEY = "refresh_token"
 
@@ -32,9 +36,9 @@ def refresh_access_token(refresh_token):
     resp = requests.post(url, data=data).json()
     if "access_token" in resp:
         save_tokens(resp["access_token"])
-        return resp["access_token"]
     else:
-        raise Exception(f"Failed to refresh token: {resp}")
+        device_code, interval = request_user_code()
+        poll_for_tokens(device_code, interval)
 
 def request_user_code():
     url = f"https://{AUTH0_DOMAIN}/oauth/device/code"
@@ -84,21 +88,18 @@ def poll_for_tokens(device_code, interval):
 
 def device_authorization():
   access_token, refresh_token = load_tokens()
-  if access_token:
-    print("Access token found!")
-  elif refresh_token:
-    print("Refresh token found! Refreshing...")
+  if access_token and refresh_token:
+    return
+  elif not access_token and refresh_token:
     save_tokens(refresh_access_token(refresh_token))
   else:
-    print("No tokens found. Starting device authorization flow...")
     device_code, interval = request_user_code()
-    tokens = poll_for_tokens(device_code, interval)
-    return tokens
+    poll_for_tokens(device_code, interval)
 
 if __name__ == "__main__":
     
-    # keyring.delete_password(SERVICE_NAME, ACCESS_TOKEN_KEY)
-    # keyring.delete_password(SERVICE_NAME, REFRESH_TOKEN_KEY)
+    keyring.delete_password(SERVICE_NAME, ACCESS_TOKEN_KEY)
+    keyring.delete_password(SERVICE_NAME, REFRESH_TOKEN_KEY)
 
-    tokens = device_authorization()
-    print(tokens)
+    # tokens = device_authorization()
+    # print(tokens)
