@@ -1,6 +1,16 @@
 from rich.console import Console
+from subprocess import CalledProcessError
 import threading
-def thinking_animation(stop_loading):
+def thinking_animation(stop_loading : threading.Event) -> None:
+  """
+  Show a thinking animation while a task is in progress.
+
+  Args:
+      stop_loading (threading.Event): An event to signal when to stop the animation.
+
+  Returns:
+      None
+  """
   from rich.panel import Panel
   from rich.live import Live
   from time import sleep
@@ -21,48 +31,83 @@ thread = None
 console = Console()
 
 def start_animation():
+  """
+  Start the thinking animation.
+
+  Returns:
+      None
+  """
   global thread
   stop_loading.clear()
   thread = threading.Thread(target=thinking_animation, args=(stop_loading,))
   thread.start()
 
 def stop_animation():
+  """
+  Stop the thinking animation.
+
+  Returns:
+      None
+  """
   global thread
   stop_loading.set()
   if thread is not None:
     thread.join()
     thread = None
-  # Clear console after animation
   console.clear_live()
 
-def prompt_the_api(prompt):
+def prompt_and_authorize_the_api(prompt: str):
+  """
+  Prompt the user for API authorization (if required) and send the request to the API.
+
+  Args:
+      prompt (str): The prompt to send to the API.
+
+  Returns:
+      requests.Response: The response from the API.
+  """
   import requests
-  from authorization import load_tokens, refresh_access_token, device_authorization
+  from authorization import load_tokens, refresh_access_token
   
-  access_token, refresh_token = load_tokens()
+  access_token : str | None = load_tokens()[0]
 
-  if not access_token or not refresh_token:
+  # Get a new access token if not available
+  if access_token is None:
     stop_animation()
-    device_authorization()
-  
-  def poll_request():
+    refresh_access_token(load_tokens()[1])
     access_token = load_tokens()[0]
-    response = requests.post(
-      "http://localhost:3000/debug",
-      json={"prompt": prompt},
-      headers={"Authorization": f"Bearer {access_token}"}
-    )
-    return response
 
+  response = requests.post(
+    "http://localhost:3000/debug",
+    json={"prompt": prompt},
+    headers={"Authorization": f"Bearer {access_token}"}
+  )
+
+  # if the existing access token is invalid/expired, get a new access token
+  if response.status_code == 401:
+    stop_animation()
+    refresh_access_token(load_tokens()[1])
+  return response
+
+def fetch_api_response_with_validation(prompt: str):
+  """
+  Fetch the API response and validate the JSON structure.
+
+  Args:
+      prompt (str): The prompt to send to the API.
+
+  Returns:
+      str: The output from the API.
+
+  Raises:
+      Exception: If the API response is invalid or an error occurs.
+  """
+  data = None
   try:
-    data = poll_request().json()
+    data = prompt_and_authorize_the_api(prompt).json()
   except Exception:
-    refresh_access_token(refresh_token)
-    try:
-      data = poll_request().json()
-    except Exception:
-      stop_animation()
-      raise Exception("Failed to parse response from API")
+    stop_animation()
+    raise Exception(f"Failed to parse response from API, here's data: {data}")
 
   if 'output' in data:
     return data['output']
@@ -73,7 +118,21 @@ def prompt_the_api(prompt):
     else:
       raise Exception("Unexpected response format from API")
 
-def handle_error(e, file_content):
+def handle_error(e : CalledProcessError, file_content : str):
+  """
+  Handle errors that occur during the execution of the code.
+
+  Takes the file content and the error information to provide feedback using the API.
+
+  Args:
+      e (CalledProcessError): The error that occurred.
+      file_content (str): The content of the file being processed.
+
+  Returns:
+      None
+  """
+  from rich import print
+  
   start_animation()
 
   # prompting ai for response
@@ -115,8 +174,8 @@ def handle_error(e, file_content):
       
     [cyan] [Suggest any short further enhancements or best practices under 30 words] [/cyan]
     """
-  roast = prompt_the_api(roast_prompt)
-  prompt_response = prompt_the_api(prompt)
+  roast = fetch_api_response_with_validation(roast_prompt)
+  prompt_response = fetch_api_response_with_validation(prompt)
   response = prompt_response.replace('```python\n', '')
   response = response.replace('\n```', '')
 
@@ -127,8 +186,7 @@ def handle_error(e, file_content):
 
 def main():
   from argparse import ArgumentParser, Namespace
-  from subprocess import run, CalledProcessError
-  from rich import print
+  from subprocess import run
 
   # imports configuration
   parser = ArgumentParser()
@@ -136,10 +194,16 @@ def main():
   parser.usage = "Learn python better!!"
 
   # cli configuration
-  parser.add_argument('filepath', help='Add the path to the file')
+  
+  # parser.add_argument('filepath', help='Add the path to the file')
+
+  #TODO: This is for testing. Remove this before production
+  parser.add_argument('filepath', nargs='?', default='./test.py', help='Add the path to the file (default: ./test.py)')
+
   parser.add_argument('-v', '--verbose', action='count', help='Adds verbose to output')
   args: Namespace = parser.parse_args()
 
+  file_content = ''
   try:
     try:
       # checking if the the file runs
