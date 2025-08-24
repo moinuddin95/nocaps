@@ -29,6 +29,7 @@ def thinking_animation(stop_loading : threading.Event) -> None:
 stop_loading = threading.Event()
 thread = None
 console = Console()
+api="http://localhost:3000"
 
 def start_animation():
   """
@@ -78,7 +79,7 @@ def prompt_and_authorize_the_api(prompt: str):
     access_token = load_tokens()[0]
 
   response = requests.post(
-    "http://localhost:3000/debug",
+    f"{api}/debug",
     json={"prompt": prompt},
     headers={"Authorization": f"Bearer {access_token}"}
   )
@@ -90,7 +91,7 @@ def prompt_and_authorize_the_api(prompt: str):
     access_token = load_tokens()[0]
 
   response = requests.post(
-    "http://localhost:3000/debug",
+    f"{api}/debug",
     json={"prompt": prompt},
     headers={"Authorization": f"Bearer {access_token}"}
   )
