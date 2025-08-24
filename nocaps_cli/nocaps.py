@@ -87,6 +87,14 @@ def prompt_and_authorize_the_api(prompt: str):
   if response.status_code == 401:
     stop_animation()
     refresh_access_token(load_tokens()[1])
+    access_token = load_tokens()[0]
+
+  response = requests.post(
+    "http://localhost:3000/debug",
+    json={"prompt": prompt},
+    headers={"Authorization": f"Bearer {access_token}"}
+  )
+  
   return response
 
 def fetch_api_response_with_validation(prompt: str):
