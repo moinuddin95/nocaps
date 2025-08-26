@@ -68,7 +68,7 @@ def prompt_and_authorize_the_api(prompt: str):
       requests.Response: The response from the API.
   """
   import requests
-  from authorization import load_tokens, refresh_access_token
+  from authorization_pkce import load_tokens, refresh_access_token
   
   access_token : str | None = load_tokens()[0]
 

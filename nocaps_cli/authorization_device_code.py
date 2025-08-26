@@ -4,6 +4,8 @@ import keyring
 from dotenv import load_dotenv
 import os
 
+# ! This file is deprecated
+
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../.env'))
 
 AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")  # e.g. "dev-1234.us.auth0.com"
@@ -41,6 +43,7 @@ def load_tokens():
   refresh_token = keyring.get_password(SERVICE_NAME, REFRESH_TOKEN_KEY)
   return access_token, refresh_token
 
+#TODO Rewire this function
 def refresh_access_token(refresh_token: str | None):
   """
   Requests Auth0 for a new access token using the refresh token.
@@ -146,8 +149,6 @@ def poll_for_tokens(device_code: str, interval: int):
       save_tokens(token_resp["access_token"], token_resp.get("refresh_token"))
       break
 
-count = 0
-
 def start_auth_verification_process():
   """
   Redirect the user to the Auth0 verification URI and start polling
@@ -155,8 +156,6 @@ def start_auth_verification_process():
   Returns:
       None
   """
-  global count
-  count += 1
   device_code, interval = request_user_code()
   poll_for_tokens(device_code, interval)
 
