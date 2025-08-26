@@ -112,11 +112,6 @@ def fetch_api_response_with_validation(prompt: str):
       Exception: If the API response is invalid or an error occurs.
   """
   data = None
-  # try:
-  #   data = prompt_and_authorize_the_api(prompt).json()
-  # except Exception:
-  #   stop_animation()
-  #   raise Exception(f"Failed to parse response from API, here's data: {data}")
   response = prompt_and_authorize_the_api(prompt)
   if hasattr(response, "json") and callable(response.json):
     try:
