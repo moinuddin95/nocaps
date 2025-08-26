@@ -137,14 +137,12 @@ def poll_for_tokens(device_code: str, interval: int):
     token_resp = requests.post(token_url, data=token_data).json()
 
     if "error" in token_resp:
-      if token_resp["error"] == "authorization_pending":
-        print("Waiting for user to authorize...")
-      elif token_resp["error"] == "slow_down":
+      if token_resp["error"] == "slow_down":
         interval += 5
       else:
         raise Exception(f"Auth failed: {token_resp}")
     else:
-      print("✅ Auth successful!")
+      print("✅ Login successful!")
       save_tokens(token_resp["access_token"], token_resp.get("refresh_token"))
       break
 
@@ -159,7 +157,6 @@ def start_auth_verification_process():
   """
   global count
   count += 1
-  print(f"Auth attempt: {count}")
   device_code, interval = request_user_code()
   poll_for_tokens(device_code, interval)
 
