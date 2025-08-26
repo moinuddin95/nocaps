@@ -29,7 +29,7 @@ def thinking_animation(stop_loading : threading.Event) -> None:
 stop_loading = threading.Event()
 thread = None
 console = Console()
-api="http://localhost:3000"
+api="https://api.nocaps.moinuddin.tech"
 
 def start_animation():
   """
@@ -112,11 +112,21 @@ def fetch_api_response_with_validation(prompt: str):
       Exception: If the API response is invalid or an error occurs.
   """
   data = None
-  try:
-    data = prompt_and_authorize_the_api(prompt).json()
-  except Exception:
+  # try:
+  #   data = prompt_and_authorize_the_api(prompt).json()
+  # except Exception:
+  #   stop_animation()
+  #   raise Exception(f"Failed to parse response from API, here's data: {data}")
+  response = prompt_and_authorize_the_api(prompt)
+  if hasattr(response, "json") and callable(response.json):
+    try:
+      data = response.json()
+    except Exception:
+      stop_animation()
+      raise Exception(f"Failed to parse response from API, here's data: {response.text}")
+  else:
     stop_animation()
-    raise Exception(f"Failed to parse response from API, here's data: {data}")
+    raise Exception("API response object does not have a json() method, here's data: {response.text}")
 
   if 'output' in data:
     return data['output']
