@@ -8,12 +8,25 @@ nocaps is an AI-powered tool that automatically detects, diagnoses, and suggests
 
 - [Installation](#installation)
 - [Usage](#usage)
+- [Options](#options)
 - [Features](#features)
 - [Contributing](#contributing)
+- [Project Structure](#project-structure)
 - [How It Works](#how-it-works)
 
 ## Installation
 
+### From PyPI
+```bash
+pip install nocaps
+```
+
+### From NPM
+```bash
+npm install -g nocaps
+```
+
+### From Source
 ```bash
 git clone https://github.com/yourusername/nocaps.git
 cd nocaps
@@ -28,6 +41,11 @@ It is compatible with python, javascript, and java.
 nocaps <your-code-file>
 ```
 
+## Options
+
+- `--help`: Show help message
+- `--version`: Show version information
+
 ## Features
 
 - Suggests fixes for run-time errors
@@ -38,6 +56,9 @@ nocaps <your-code-file>
 
 Contributions are welcome! Please open issues or submit pull requests.
 
+## Project Structure
+
+
 ## How It Works
 
 nocaps uses Gemini 2.0 flash to analyze your code and identify potential run-time errors. It then provides suggestions for fixing these errors, along with explanations to help you understand the underlying issues.
@@ -46,7 +67,7 @@ It uses a Auth0 authentication system to ensure secure access and protect user d
 
 Here's a diagram illustrating the Authorization/Authentication flow:
 
-![diagram](image.png)
+![diagram](auth_flow_diagram.png)
 for more information refer to the [Auth0 documentation](https://auth0.com/docs).
 
 After successful authentication, nocaps directs user's code to the backend server for analysis and debugging.

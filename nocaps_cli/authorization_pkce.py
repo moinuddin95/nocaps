@@ -68,12 +68,14 @@ class OAuthCallbackHandler(http.server.SimpleHTTPRequestHandler):
       auth_code = params.get("code")
 
       # Respond to browser
-      self.send_response(200)
+      self.send_response(302)
+      self.send_header("Location", "https://nocaps.moinuddin.tech/login")
       self.end_headers()
-      self.wfile.write(b"<h1>Login successful! You can close this window.</h1>")
     else:
       self.send_response(404)
       self.end_headers()
+  def log_message(self, format: str, *args: object):
+    pass
 
 def start_server():
   """

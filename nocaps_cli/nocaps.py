@@ -1,6 +1,7 @@
 from rich.console import Console
 from subprocess import CalledProcessError
 import threading
+
 def thinking_animation(stop_loading : threading.Event) -> None:
   """
   Show a thinking animation while a task is in progress.
@@ -68,7 +69,7 @@ def prompt_and_authorize_the_api(prompt: str):
       requests.Response: The response from the API.
   """
   import requests
-  from authorization_pkce import load_tokens, refresh_access_token
+  from .authorization_pkce import load_tokens, refresh_access_token
   
   access_token : str | None = load_tokens()[0]
 
@@ -209,10 +210,7 @@ def main():
 
   # cli configuration
   
-  # parser.add_argument('filepath', help='Add the path to the file')
-
-  #TODO: This is for testing. Remove this before production
-  parser.add_argument('filepath', nargs='?', default='./test.py', help='Add the path to the file (default: ./test.py)')
+  parser.add_argument('filepath', help='Add the path to the file')
 
   parser.add_argument('-v', '--verbose', action='count', help='Adds verbose to output')
   args: Namespace = parser.parse_args()
