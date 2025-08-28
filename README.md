@@ -58,6 +58,31 @@ Contributions are welcome! Please open issues or submit pull requests.
 
 ## Project Structure
 
+nocaps/
+├── nocaps_cli/                  # Python CLI package
+│   ├── __init__.py
+│   ├── nocaps.py                # main CLI logic
+│   ├── authorization_pkce.py    # PKCE authorization flow
+│   ├── authorization_device_code.py
+│   └── __pycache__/             # (ignored in .gitignore)
+│
+├── nocaps_server/               # Node.js API server
+│   ├── server.js
+│   ├── package.json
+│   ├── package-lock.json
+│   └── node_modules/            # (ignored in .gitignore)
+│
+├── tests/                       # test files for different languages
+│   ├── test.py
+│   ├── test.js
+│   ├── test.java
+│   └── test.class               # (compiled, usually ignored)
+│
+├── setup.py                     # Python packaging (PyPI)
+├── README.md
+├── .gitignore
+├── .env                         # root env (ignored)
+└── image.png                    # assets (logo, docs, etc.)
 
 ## How It Works
 
