@@ -1,0 +1,19 @@
+name: Deploy nocaps
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - run: |
+          pip install --upgrade build twine
+          python setup.py sdist bdist_wheel
+          twine upload dist/* --username __token__ --password ${{ secrets.PYPI_API_TOKEN }}

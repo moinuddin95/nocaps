@@ -57,8 +57,11 @@ nocaps <your-code-file>
 Contributions are welcome! Please open issues or submit pull requests.
 
 ## Project Structure
-
+```
 nocaps/
+├── .github/
+│   └── workflows/
+│       └── ci-cd.yml
 ├── nocaps_cli/                  # Python CLI package
 │   ├── __init__.py
 │   ├── nocaps.py                # main CLI logic
@@ -83,6 +86,7 @@ nocaps/
 ├── .gitignore
 ├── .env                         # root env (ignored)
 └── image.png                    # assets (logo, docs, etc.)
+```
 
 ## How It Works
 
