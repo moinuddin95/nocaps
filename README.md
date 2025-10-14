@@ -66,7 +66,7 @@ nocaps/
 │   ├── __init__.py
 │   ├── nocaps.py                # main CLI logic
 │   ├── authorization_pkce.py    # PKCE authorization flow
-│   ├── authorization_device_code.py
+│   ├── authorization_device_code.py  # depricated device code authorization flow
 │   └── __pycache__/             # (ignored in .gitignore)
 │
 ├── nocaps_server/               # Node.js API server
